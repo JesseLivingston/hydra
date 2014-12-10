@@ -13,9 +13,11 @@
  */
 package com.addthis.hydra.task.output.tree;
 
+import java.util.List;
+
 import com.addthis.basis.util.Strings;
 
-import com.addthis.bundle.util.ValueUtil;
+import com.addthis.bundle.value.ValueObject;
 import com.addthis.codec.annotations.FieldConfig;
 import com.addthis.hydra.data.query.FieldValueList;
 import com.addthis.hydra.data.tree.DataTreeNode;
@@ -94,39 +96,42 @@ public final class PathQuery extends PathOp {
 
     @Override
     public TreeNodeList getNextNodeList(TreeMapState state) {
-        String[] p = new String[path.length];
+        ValueObject[] p = new ValueObject[path.length];
         for (int i = 0; i < p.length; i++) {
-            p[i] = ValueUtil.asNativeString(path[i].getPathValue(state));
+            p[i] = path[i].getPathValue(state);
             if (p[i] == null) {
                 return null;
             }
         }
-        DataTreeNode reference = null;
+        List<DataTreeNode> references;
         if (relativeUp > 0) {
-            reference = DataTreeUtil.pathLocateFrom(state.peek(relativeUp), p);
+            references = DataTreeUtil.pathLocateFrom(state.peek(relativeUp), p);
         } else {
-            reference = DataTreeUtil.pathLocateFrom(state.current().getTreeRoot(), p);
+            references = DataTreeUtil.pathLocateFrom(state.current().getTreeRoot(), p);
         }
-        if (reference != null) {
-            FieldValueList valueList = new FieldValueList(state.getFormat());
-            if (values.update(valueList, reference, state) == 0) {
-                return null;
-            }
-            if (valueList.updateBundle(state.getBundle())) {
-                if (debug > 0) {
-                    debug(true);
+        boolean success = false;
+        for (DataTreeNode reference : references) {
+            if (reference != null) {
+                FieldValueList valueList = new FieldValueList(state.getFormat());
+                if (values.update(valueList, reference, state) == 0) {
+                    continue;
                 }
-                return TreeMapState.empty();
-            }
-        } else {
-            if (debug > 0) {
-                debug(false);
-            }
-            if (log.isDebugEnabled() || debug == 1) {
-                log.warn("query fail, missing " + Strings.join(p, " / "));
+                if (valueList.updateBundle(state.getBundle())) {
+                    if (debug > 0) {
+                        debug(true);
+                    }
+                    success = true;
+                }
+            } else {
+                if (debug > 0) {
+                    debug(false);
+                }
+                if (log.isDebugEnabled() || debug == 1) {
+                    log.warn("query fail, missing " + Strings.join(p, " / "));
+                }
             }
         }
-        return null;
+        return success ? TreeMapState.empty() : null;
     }
 
     private synchronized void debug(boolean hit) {
