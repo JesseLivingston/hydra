@@ -13,6 +13,7 @@
  */
 package com.addthis.hydra.task.output.tree;
 
+import java.util.Iterator;
 import java.util.List;
 
 import com.addthis.basis.util.Strings;
@@ -103,14 +104,15 @@ public final class PathQuery extends PathOp {
                 return null;
             }
         }
-        List<DataTreeNode> references;
+        Iterator<DataTreeNode> references;
         if (relativeUp > 0) {
             references = DataTreeUtil.pathLocateFrom(state.peek(relativeUp), p);
         } else {
             references = DataTreeUtil.pathLocateFrom(state.current().getTreeRoot(), p);
         }
         boolean success = false;
-        for (DataTreeNode reference : references) {
+        while (references.hasNext()) {
+            DataTreeNode reference = references.next();
             if (reference != null) {
                 FieldValueList valueList = new FieldValueList(state.getFormat());
                 if (values.update(valueList, reference, state) == 0) {

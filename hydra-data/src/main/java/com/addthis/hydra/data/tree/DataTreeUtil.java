@@ -17,12 +17,15 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import com.addthis.basis.util.ClosableIterator;
 
 import com.addthis.bundle.util.ValueUtil;
 import com.addthis.bundle.value.ValueObject;
+
+import com.google.common.collect.Iterators;
 
 public class DataTreeUtil {
 
@@ -41,14 +44,42 @@ public class DataTreeUtil {
         return node;
     }
 
-    public static final @Nonnull List<DataTreeNode> pathLocateFrom(DataTreeNode node, ValueObject[] path) {
+    public static final @Nonnull Iterator<DataTreeNode> pathLocateFrom(DataTreeNode node, ValueObject[] path) {
         if (path == null || node == null || path.length == 0) {
-            return Collections.EMPTY_LIST;
+            return Iterators.emptyIterator();
         } else {
-            List<DataTreeNode> current = new ArrayList<>();
-            List<DataTreeNode> next = new ArrayList<>();
-            current.add(node);
-            return pathLocateFrom(path, 0, current, next);
+            return pathLocateFrom(path, 0, Iterators.singletonIterator(node));
+        }
+    }
+
+    /**
+     * Recursively traverse the paths from beginning to end and generate iteration of output nodes.
+     * Separate the iterator into the first element and the rest of the elements. The common
+     * case is an iterator of size one and we handle this case separately to eliminate the
+     * overhead of merging iterators of iterators.
+     *
+     * @param path      list of specifications of paths to evaluate
+     * @param index     current position in the path list
+     * @param current   iterator of input nodes
+     * @return          iterator of output nodes
+     */
+    private static Iterator<DataTreeNode> pathLocateFrom(ValueObject[] path, int index,
+                                                         Iterator<DataTreeNode> current) {
+        if (index < path.length) {
+            if (current.hasNext()) {
+                DataTreeNode head = current.next();
+                Iterator<DataTreeNode> nextHead = pathLocateNext(head, path[index]);
+                if (current.hasNext()) {
+                    return Iterators.concat(nextHead, Iterators.concat(
+                            Iterators.transform(current, (element) -> pathLocateNext(element, path[index]))));
+                } else {
+                    return nextHead;
+                }
+            } else {
+                return Iterators.emptyIterator();
+            }
+        } else {
+            return current;
         }
     }
 
@@ -58,43 +89,13 @@ public class DataTreeUtil {
      * @param node       current node
      * @param path       specification of path to evaluate
      */
-    private static void pathLocateNext(DataTreeNode node, ValueObject path, List<DataTreeNode> results) {
+    private static Iterator<DataTreeNode> pathLocateNext(DataTreeNode node, ValueObject path) {
         if (path.getObjectType() == ValueObject.TYPE.CUSTOM &&
             path.asNative() == GLOB_OBJECT) {
-            ClosableIterator<DataTreeNode> iterator =  node.getIterator();
-            try {
-                while (iterator.hasNext()) {
-                    results.add(iterator.next());
-                }
-            } finally {
-                iterator.close();
-            }
+            return node.getIterator();
         } else {
-            results.add(node.getNode(ValueUtil.asNativeString(path)));
+            return Iterators.singletonIterator(node.getNode(ValueUtil.asNativeString(path)));
         }
     }
-
-    /**
-     * Recursively traverse the paths from beginning to end and generate a result list of nodes.
-     *
-     * @param path      list of specifications of paths to evaluate
-     * @param index     current position in the path list
-     * @param current   list of input nodes
-     * @return          list of output nodes
-     */
-    private static List<DataTreeNode> pathLocateFrom(ValueObject[] path, int index,
-                                                           List<DataTreeNode> current,
-                                                           List<DataTreeNode> next) {
-        if (index < path.length) {
-            for(DataTreeNode node : current) {
-                pathLocateNext(node, path[index], next);
-            }
-            current.clear();
-            return pathLocateFrom(path, index + 1, next, current);
-        } else {
-            return current;
-        }
-    }
-
 
 }
