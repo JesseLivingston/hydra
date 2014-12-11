@@ -70,10 +70,11 @@ public class DataTreeUtil {
                 DataTreeNode head = current.next();
                 Iterator<DataTreeNode> nextHead = pathLocateNext(head, path[index]);
                 if (current.hasNext()) {
-                    return Iterators.concat(nextHead, Iterators.concat(
+                    Iterator<DataTreeNode> next = Iterators.concat(nextHead, Iterators.concat(
                             Iterators.transform(current, (element) -> pathLocateNext(element, path[index]))));
+                    return pathLocateFrom(path, index + 1, next);
                 } else {
-                    return nextHead;
+                    return pathLocateFrom(path, index + 1, nextHead);
                 }
             } else {
                 return Iterators.emptyIterator();
