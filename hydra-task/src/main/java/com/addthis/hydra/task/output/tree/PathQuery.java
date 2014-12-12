@@ -78,6 +78,13 @@ public final class PathQuery extends PathOp {
     @FieldConfig(codable = true)
     private String debugKey;
 
+    /**
+     * If true then append all the matching results
+     * into value arrays. Default is false.
+     */
+    @FieldConfig(codable = true)
+    private boolean accumulate;
+
     private int match;
     private int miss;
 
@@ -118,7 +125,13 @@ public final class PathQuery extends PathOp {
                 if (values.update(valueList, reference, state) == 0) {
                     continue;
                 }
-                if (valueList.updateBundle(state.getBundle())) {
+                boolean update;
+                if (accumulate) {
+                    update = valueList.updateBundleWithAppend(state.getBundle());
+                } else {
+                    update = valueList.updateBundle(state.getBundle());
+                }
+                if (update) {
                     if (debug > 0) {
                         debug(true);
                     }

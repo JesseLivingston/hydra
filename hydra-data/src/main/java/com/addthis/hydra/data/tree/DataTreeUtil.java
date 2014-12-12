@@ -33,15 +33,16 @@ public class DataTreeUtil {
 
     public static Object getGlobObject() { return GLOB_OBJECT; }
 
-    public static final DataTreeNode pathLocateFrom(DataTreeNode node, String[] path) {
+    public static final DataTreeNode pathLocateFrom(DataTreeNode input, String[] path) {
         int plen = path.length;
+        DataTreeNode current = input;
         for (int i = 0; i < plen; i++) {
-            node = node.getNode(path[i]);
-            if (node == null || i == plen - 1) {
-                return node;
+            current = current.getNode(path[i]);
+            if (current == null) {
+                return null;
             }
         }
-        return node;
+        return current;
     }
 
     public static final @Nonnull Iterator<DataTreeNode> pathLocateFrom(DataTreeNode node, ValueObject[] path) {
